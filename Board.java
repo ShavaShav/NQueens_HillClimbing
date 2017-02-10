@@ -98,16 +98,16 @@ public class Board {
 		int rowSize = height/numQueens; // numQueen rows and cols
 		int colSize = width/numQueens;
 		g2.setColor(Color.BLACK);	
-		for (int x = colSize; x <= width - colSize; x += colSize){
+		for (int col = 1, x = colSize; col < numQueens; col++, x += colSize){
 			g2.drawLine(x, 0, x, height);
 		}
-		for (int y = rowSize; y <= height - rowSize; y += rowSize){
+		for (int row = 1, y = rowSize; row < numQueens; row++, y += rowSize){
 			g2.drawLine(0, y, width, y);
 		}
 		// paint queens (dark red)
 		g2.setColor(new Color(122,51,48));
-		for (int col = 0, x = 0; x <= width - colSize; col++, x += colSize){
-			for (int row = 0, y = 0; y <= height - rowSize; row++, y += rowSize){
+		for (int col = 0, x = 0; col < numQueens; col++, x += colSize){
+			for (int row = 0, y = 0; row < numQueens; row++, y += rowSize){
 				if (queenAtSpace[col][row]){
 					g2.fillOval(x, y, colSize, rowSize);
 				}
