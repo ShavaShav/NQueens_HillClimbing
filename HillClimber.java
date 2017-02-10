@@ -22,7 +22,7 @@ public class HillClimber {
 		this.panel = panel;
 	}
 	
-	// return true when goal has been reached
+	// stops when goal has been reached
 	public void climbDemHills(int speed){
 		timer = new Timer(speed, new ActionListener(){
 	        public void actionPerformed(ActionEvent evt) {
