@@ -1,26 +1,35 @@
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.ArrayList;
+import java.util.Observable;
 
-import javax.swing.JOptionPane;
 import javax.swing.Timer;
 
 // Solves N-Queens problem by hill climbing with random restarts and sideways moves allowed
-public class HillClimber {
+public class HillClimber extends Observable {
 	private Timer timer;
 	private Board board;
 	private BoardPanel panel;
 	private int currentNumAttacking;
 	private int numRestarts, numIterations;
-	private static final int MAX_SIDEWAYS = 20;
-	private int sidewaysMoves = 0;
-	
+	private int sidewaysMoves = 0, maxSideways, totalSidewaysMoves = 0;
 	// constructor
 	public HillClimber(Board board, BoardPanel panel){
-		reset();
 		this.board = board;
 		this.panel = panel;
+		this.maxSideways = board.numQueens/2;
+		reset();
 	}
+	
+	public void setMaxSidewaysMoves(int sidewaysMoves){
+		this.maxSideways = sidewaysMoves;
+	}
+	
+	public int getNumRestarts(){ return numRestarts; }
+	public int getNumIterations(){ return numIterations; }
+	public int getSidewaysMoves(){ return sidewaysMoves; }
+	public int getTotalSidewaysMoves(){ return totalSidewaysMoves; }
+	public int getCurrentNumAttacking(){ return currentNumAttacking; }
 	
 	// return true when goal has been reached
 	public void climbDemHills(int speed){
@@ -28,6 +37,7 @@ public class HillClimber {
 	        public void actionPerformed(ActionEvent evt) {
             	if (generateNextNeighbour()){ // get next better state
             		numIterations++;
+            		notifyChanged();
             		panel.repaint();
             		//System.out.print(board.getNumPairsAttacking() + " -> ");
             	} else { // no better neighbours
@@ -35,16 +45,14 @@ public class HillClimber {
             		// solved
             		if (currentNumAttacking == 0){
             			timer.stop();
-            			String result = "Solved after taking " + numRestarts +
-            					" random restarts, averaging " + numIterations/(numRestarts+1) +
-            					" iterations per restart.";
+            			notifyChanged();
             			panel.repaint();
             			reset();
-            			JOptionPane.showMessageDialog(null, result);
             		} else {
             			// Random restart 
             			//System.out.println("Randomly restarting...");
             			numRestarts++;
+            			notifyChanged();
             			board.resetQueens();
             			panel.repaint();
             		}
@@ -52,6 +60,11 @@ public class HillClimber {
 	        }
 	    });
 	    timer.start();
+	}
+	
+	private void notifyChanged(){
+		this.setChanged();
+		this.notifyObservers();
 	}
 	
 	//finds the next neighbour with a smaller amount of 
@@ -91,16 +104,18 @@ public class HillClimber {
 		
 		// alter state of board with new neighbour (take action)
 		if (min < currentNumAttacking){
-			board.moveQueen(minCol, minRow); // smaller neighbour
-			sidewaysMoves = 0; // reset sideways moves
-			return true;
-		} else if (min == currentNumAttacking && sidewaysMoves < MAX_SIDEWAYS) { // sideways move
-			board.moveQueen(minCol,minRow);
+			// smaller neighbour
+			sidewaysMoves = 0; // reset sideways moves		
+		} else if (min == currentNumAttacking && sidewaysMoves < maxSideways) { 
+			// sideways move
 			sidewaysMoves++;
-			return true;
+			totalSidewaysMoves++;
 		} else {
 			return false; // no smaller neighbour
 		}
+		board.moveQueen(minCol,minRow);
+		notifyChanged();
+		return true;
 	}
 	
 	public void setDelay(int delay){
@@ -114,8 +129,10 @@ public class HillClimber {
 	
 	
 	public void reset(){
+		totalSidewaysMoves = 0;
 		numRestarts = 0;
 		numIterations = 0;
+		currentNumAttacking = board.calculateAttackingPairs();
 	}
 	
 	private class Pair{
