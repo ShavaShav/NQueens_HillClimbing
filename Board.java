@@ -8,8 +8,10 @@ import java.util.HashMap;
 public class Board {
 
 	protected int numQueens;
-	private boolean queenAtSpace[][];
+	private int board[]; // index = column, entry = row
 	private HashMap<Integer, ArrayList<Integer>> attackingPairs; // contains columns attacking eachother (for drawing)
+	private int numAttacking;
+	private int chosenQueen;
 	
 	public Board(int numQueens){
 		this.numQueens = numQueens;
@@ -17,75 +19,93 @@ public class Board {
 	}
 	
 	public boolean isQueenAtSpace(int col, int row){
-		return queenAtSpace[col][row];
+		return board[col] == row;
 	}
 	
 	// place queens on board randomly, 1 per column
 	public void resetQueens(){
-		queenAtSpace = new boolean[numQueens][numQueens];
-		for (int i = 0; i < numQueens; i++){
+		numAttacking = 0;
+		chosenQueen = -1;
+		board = new int[numQueens];
+		for (int col = 0; col < numQueens; col++){
 			int row = (int) (Math.random() * numQueens);
-			queenAtSpace[i][row] = true;
+			board[col] = row;
 		}
-		calculateAttackingPairs();
+		initializeAttackingPairs();
 	}
 	
-	// move queen at column to a new row
-	public void moveQueen(int atCol, int toRow){
-		int queenRow = getQueenRow(atCol);
-		queenAtSpace[atCol][queenRow] = false;
-		queenAtSpace[atCol][toRow] = true;
+	public void setChosenQueen(int col){
+		chosenQueen = col;
 	}
 	
 	public int getQueenRow(int forCol){
-		for (int i = 0; i < numQueens; i++){
-			if (queenAtSpace[forCol][i])
-				return i;
-		}
-		return -1;
+		return board[forCol];
 	}
 	
-	public int calculateAttackingPairs(){
-		int currentNumAttacking = 0;
-		attackingPairs = new HashMap<Integer, ArrayList<Integer>>();
-		for (int i = 0; i < numQueens; i++){
-			attackingPairs.put(i, new ArrayList<Integer>());
-		}
-		for (int col = 0; col < numQueens - 1; col++){ // dont need to check last column
-			for (int row = 0; row < numQueens; row++){
-				// can essentially "sweep" to the right, dont need to recheck queens
-				if (queenAtSpace[col][row]){
-					// search to direct right
-					for (int queenCol = col+1; queenCol < numQueens; queenCol++){
-						if (queenAtSpace[queenCol][row]){
-							attackingPairs.get(col).add(queenCol);
-							currentNumAttacking++;
-						}
-					}
-					// search up right diagonal
-					for (int queenCol = col+1, queenRow = row-1; queenCol < numQueens && queenRow >= 0; queenCol++, queenRow--){
-						if (queenAtSpace[queenCol][queenRow]){
-							// add to eachothers list of attackers
-							attackingPairs.get(col).add(queenCol);
-							currentNumAttacking++;
-						}
-				
-					}
-					// search down right diagonal
-					for (int queenCol = col+1, queenRow = row+1; queenCol < numQueens && queenRow < numQueens; queenCol++, queenRow++){
-						if (queenAtSpace[queenCol][queenRow]){
-							attackingPairs.get(col).add(queenCol);
-							currentNumAttacking++;
-						}
-					}
-					// stop searching column
-					row = numQueens;
-				}
+	// returns the number of attacks after a hypothetical move
+	public int evaluateMove(int atCol, int toRow){
+		// total attacking - num attacking chosen queen
+		int newNumAttacking = numAttacking - attackingPairs.get(atCol).size();
+		for (int attackingCol = 0; attackingCol < numQueens; attackingCol++){
+			// horizontal or diagonal attack
+			if ((toRow == board[attackingCol]) || 
+					(Math.abs(atCol - attackingCol) == Math.abs(toRow - board[attackingCol]))){
+				newNumAttacking++;
 			}
 		}
-		return currentNumAttacking;
+		return newNumAttacking;
 	}
 	
+	private void initializeAttackingPairs(){
+		attackingPairs = new HashMap<Integer, ArrayList<Integer>>();
+		numAttacking = 0;
+		// initialize array lists
+		for (int i = 0; i < numQueens; i++)
+			attackingPairs.put(i, new ArrayList<Integer>());
+		// calculate attacking pairs
+		for (int atCol = 0; atCol < numQueens; atCol++){
+			// can sweep to right
+			for (int attackingCol = atCol+1; attackingCol < numQueens; attackingCol++){
+				// horizontal or diagonal attack!
+				if ((board[atCol] == board[attackingCol]) || 
+						(Math.abs(atCol - attackingCol) == Math.abs(board[atCol] - board[attackingCol]))){
+					// add attacking queens to eachothers lists
+					attackingPairs.get(atCol).add(attackingCol);
+					attackingPairs.get(attackingCol).add(atCol);
+					numAttacking++;	// update count			
+				}				
+			}			
+		}
+	}
+	
+	public void makeMove(int atCol, int toRow){
+		// remove current attacks from count
+		numAttacking -= attackingPairs.get(atCol).size();
+		// remove current attacks from moving queen
+		for (int attackingCol : attackingPairs.get(atCol))
+			attackingPairs.get(attackingCol).remove(Integer.valueOf(atCol));
+		attackingPairs.get(atCol).clear();
+		// move queen
+		board[atCol] = toRow;
+		// for each queen
+		for (int attackingCol = 0; attackingCol < numQueens; attackingCol++){
+			// that is not the moving queen
+			if (attackingCol != atCol){
+				// horizontal or diagonal attack!
+				if ((board[atCol] == board[attackingCol]) || 
+						(Math.abs(atCol - attackingCol) == Math.abs(board[atCol] - board[attackingCol]))){
+					// add attacking queens to eachothers lists
+					attackingPairs.get(atCol).add(attackingCol);
+					attackingPairs.get(attackingCol).add(atCol);
+					numAttacking++;	// update count			
+				}				
+			}
+		}
+	}
+	
+	public int getNumAttacking(){
+		return numAttacking;
+	}
 	
 	// paints the board and queens
 	public void paintBoard(Graphics g, int width, int height){
@@ -107,11 +127,14 @@ public class Board {
 		// paint queens (dark red)
 		g2.setColor(new Color(122,51,48));
 		for (int col = 0, x = 0; col < numQueens; col++, x += colSize){
-			for (int row = 0, y = 0; row < numQueens; row++, y += rowSize){
-				if (queenAtSpace[col][row]){
-					g2.fillOval(x, y, colSize, rowSize);
-				}
-			}
+			int y = board[col] * rowSize;
+			g2.fillOval(x, y, colSize, rowSize);
+		}
+		// overlay the chosen queen
+		if (chosenQueen >= 0){
+			g2.setColor(new Color(165,60,57));
+			g2.fillOval(chosenQueen*colSize, board[chosenQueen]*rowSize, 
+					colSize, rowSize);			
 		}
 		// paint attacks
 		g2.setColor(Color.RED);

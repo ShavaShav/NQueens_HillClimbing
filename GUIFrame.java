@@ -197,9 +197,11 @@ public class GUIFrame extends JFrame implements Observer {
 		btnSolve = new JButton("Solve It!");
 		btnSolve.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
-				int maxSidewaysMoves = Integer.parseInt(textFieldMaxSidewaysMoves.getText());
-				hillClimber.setMaxSidewaysMoves(maxSidewaysMoves);
-				hillClimber.climbDemHills(currentSpeed);
+				if (!hillClimber.isRunning()){
+					int maxSidewaysMoves = Integer.parseInt(textFieldMaxSidewaysMoves.getText());
+					hillClimber.setMaxSidewaysMoves(maxSidewaysMoves);
+					hillClimber.climbDemHills(currentSpeed);					
+				}
 			}
 		});
 		panel_1.add(btnSolve);

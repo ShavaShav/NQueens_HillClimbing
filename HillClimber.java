@@ -13,11 +13,13 @@ public class HillClimber extends Observable {
 	private int currentNumAttacking;
 	private int numRestarts, numIterations;
 	private int sidewaysMoves = 0, maxSideways, totalSidewaysMoves = 0;
+	private boolean isRunning;
 	// constructor
 	public HillClimber(Board board, BoardPanel panel){
 		this.board = board;
 		this.panel = panel;
 		this.maxSideways = board.numQueens/2;
+		isRunning=false;
 		reset();
 	}
 	
@@ -30,6 +32,7 @@ public class HillClimber extends Observable {
 	public int getSidewaysMoves(){ return sidewaysMoves; }
 	public int getTotalSidewaysMoves(){ return totalSidewaysMoves; }
 	public int getCurrentNumAttacking(){ return currentNumAttacking; }
+	public boolean isRunning(){ return isRunning; }
 	
 	// return true when goal has been reached
 	public void climbDemHills(int speed){
@@ -44,7 +47,9 @@ public class HillClimber extends Observable {
             		//System.out.println(board.getNumPairsAttacking() + " -> Local Maximum.");
             		// solved
             		if (currentNumAttacking == 0){
+            			board.setChosenQueen(-1); // to stop drawing overlay
             			timer.stop();
+            			isRunning = false;
             			notifyChanged();
             			panel.repaint();
             			reset();
@@ -54,12 +59,14 @@ public class HillClimber extends Observable {
             			numRestarts++;
             			notifyChanged();
             			board.resetQueens();
+            			currentNumAttacking = board.getNumAttacking();
             			panel.repaint();
             		}
             	}
 	        }
 	    });
 	    timer.start();
+		isRunning = true;
 	}
 	
 	private void notifyChanged(){
@@ -78,9 +85,8 @@ public class HillClimber extends Observable {
 			int ogRow = board.getQueenRow(col);
 			for (int row = 0; row < board.numQueens; row++){
 				if (row != ogRow){
-					// move queen to potential spot and calculate number of attacking pairs
-					board.moveQueen(col, row);
-					int numAttackingPairs = board.calculateAttackingPairs();
+					// evaluate move  to potential spot
+					int numAttackingPairs = board.evaluateMove(col, row);
 					if (numAttackingPairs < min){ // first min neighbour
 						min = numAttackingPairs; // set to new min
 						minNeighbours = new ArrayList<Pair>();;
@@ -90,18 +96,13 @@ public class HillClimber extends Observable {
 					}
 				}
 			}
-			//move back to original state
-			board.moveQueen(col, ogRow);
 		}
-		// calculate current number of attacking queens
-		currentNumAttacking = board.calculateAttackingPairs();
 		
 		// pick a random min neighbour
 		int randI = (int) (Math.random() * minNeighbours.size());
 		Pair neighbourMove = minNeighbours.get(randI);
 		int minCol = neighbourMove.first;
 		int minRow = neighbourMove.second;
-		
 		// alter state of board with new neighbour (take action)
 		if (min < currentNumAttacking){
 			// smaller neighbour
@@ -113,7 +114,10 @@ public class HillClimber extends Observable {
 		} else {
 			return false; // no smaller neighbour
 		}
-		board.moveQueen(minCol,minRow);
+		board.setChosenQueen(minCol);
+		board.makeMove(minCol,minRow);
+		// recalculate current number of attacking queens/ make hashmap
+		currentNumAttacking = board.getNumAttacking();
 		notifyChanged();
 		return true;
 	}
@@ -124,6 +128,7 @@ public class HillClimber extends Observable {
 	}
 
 	public void stop(){
+		isRunning=false;
 		timer.stop();
 	}
 	
@@ -132,7 +137,7 @@ public class HillClimber extends Observable {
 		totalSidewaysMoves = 0;
 		numRestarts = 0;
 		numIterations = 0;
-		currentNumAttacking = board.calculateAttackingPairs();
+		currentNumAttacking = board.getNumAttacking();
 	}
 	
 	private class Pair{
